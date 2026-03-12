@@ -1,0 +1,14 @@
+{
+  "name": "TAMEL — Centres d'Affaires",
+  "short_name": "TAMEL",
+  "description": "Tous vos services, une seule plateforme",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0D1B4B",
+  "theme_color": "#0D1B4B",
+  "orientation": "portrait-primary",
+  "icons": [
+    { "src": "/images/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/images/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

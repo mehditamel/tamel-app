@@ -1,0 +1,217 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL") // For Neon serverless
+}
+
+// ═══ AUTH ═══
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  passwordHash  String?
+  phone         String?
+  type          UserType  @default(PARTICULIER)
+  role          Role      @default(CLIENT)
+  points        Int       @default(0)
+  level         Level     @default(BRONZE)
+  twoFactorEnabled Boolean @default(false)
+  
+  // Relations
+  accounts      Account[]
+  sessions      Session[]
+  orders        Order[]
+  documents     Document[]
+  messages      Message[]
+  invoices      Invoice[]
+  companies     Company[]
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ═══ BUSINESS ═══
+model Company {
+  id              String   @id @default(cuid())
+  userId          String
+  raisonSociale   String
+  siren           String?
+  siret           String?
+  formeJuridique  String?
+  adresse         String?
+  user            User     @relation(fields: [userId], references: [id])
+  orders          Order[]
+  createdAt       DateTime @default(now())
+}
+
+model Order {
+  id              String      @id @default(cuid())
+  ref             String      @unique
+  userId          String
+  companyId       String?
+  serviceCode     String      // DCM, CGM, CAM...
+  serviceName     String
+  status          OrderStatus @default(PENDING)
+  progress        Int         @default(0)
+  price           Decimal?
+  promoCode       String?
+  agenceId        String?
+  
+  // Custom tags (JSON)
+  tags            Json?       // [{label: "SIREN 912 345 678", color: "#2980B9"}]
+  metadata        Json?       // Service-specific data (formule, plaque, etc.)
+  
+  // Relations
+  user            User        @relation(fields: [userId], references: [id])
+  company         Company?    @relation(fields: [companyId], references: [id])
+  documents       Document[]
+  messages        Message[]
+  timeline        OrderEvent[]
+  invoice         Invoice?
+  
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+}
+
+model OrderEvent {
+  id        String   @id @default(cuid())
+  orderId   String
+  status    String
+  note      String?
+  author    String?
+  order     Order    @relation(fields: [orderId], references: [id])
+  createdAt DateTime @default(now())
+}
+
+model Document {
+  id          String       @id @default(cuid())
+  userId      String
+  orderId     String?
+  name        String
+  type        DocumentType
+  url         String
+  size        Int
+  mimeType    String
+  user        User         @relation(fields: [userId], references: [id])
+  order       Order?       @relation(fields: [orderId], references: [id])
+  createdAt   DateTime     @default(now())
+}
+
+model Message {
+  id        String   @id @default(cuid())
+  userId    String
+  orderId   String?
+  content   String
+  fromStaff Boolean  @default(false)
+  read      Boolean  @default(false)
+  user      User     @relation(fields: [userId], references: [id])
+  order     Order?   @relation(fields: [orderId], references: [id])
+  createdAt DateTime @default(now())
+}
+
+model Invoice {
+  id        String        @id @default(cuid())
+  ref       String        @unique
+  userId    String
+  orderId   String?       @unique
+  amount    Decimal
+  status    InvoiceStatus @default(PENDING)
+  pdfUrl    String?
+  user      User          @relation(fields: [userId], references: [id])
+  order     Order?        @relation(fields: [orderId], references: [id])
+  createdAt DateTime      @default(now())
+  paidAt    DateTime?
+}
+
+model BlogPost {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  title       String
+  excerpt     String
+  content     String
+  category    String
+  tags        String[]
+  published   Boolean  @default(false)
+  readTime    Int      @default(5)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ═══ ENUMS ═══
+enum UserType {
+  PROFESSIONNEL
+  PARTICULIER
+}
+
+enum Role {
+  CLIENT
+  OPERATEUR
+  MANAGER
+  DG
+  KIOSQUE
+}
+
+enum Level {
+  BRONZE
+  ARGENT
+  OR
+  PLATINE
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  IN_PROGRESS
+  DOCUMENTS_REQUIRED
+  PAYMENT_PENDING
+  COMPLETED
+  CANCELLED
+  DELIVERED
+}
+
+enum DocumentType {
+  CNI
+  KBIS
+  JUSTIFICATIF_DOMICILE
+  STATUTS
+  CARTE_GRISE
+  CONTRAT
+  FACTURE
+  AUTRE
+}
+
+enum InvoiceStatus {
+  PENDING
+  PAID
+  OVERDUE
+  CANCELLED
+}
